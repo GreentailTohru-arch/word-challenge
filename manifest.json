@@ -1,0 +1,9 @@
+{
+  "id": "qian-ci-zhan",
+  "name": "Word Challenge",
+  "version": "0.1.0",
+  "minAppVersion": "1.5.0",
+  "description": "Learn vocabulary from Markdown tables with recall cards, spaced reviews, daily goals, and progress tracking.",
+  "author": "GreentailTohru-arch",
+  "isDesktopOnly": false
+}
