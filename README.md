@@ -9,7 +9,8 @@ An offline-first vocabulary trainer for Obsidian. Study English, Japanese, Chine
 - Daily new-word goals, additional learning after the goal, due reviews, streaks, and saved sessions.
 - Filter the learning list by status. Click a word's status badge to change it.
 - Responsive layouts for phones, tablets, split view, and desktop.
-- Optional speech using the device's installed voices; choose the language in settings.
+- Pre-study vocabulary previews with multi-select mastered-word skipping.
+- End-of-session summaries with a result chart, daily goal progress, and another-group action.
 
 The current interface is in Simplified Chinese. The vocabulary content can be in any language.
 
@@ -43,9 +44,11 @@ Word IDs are based on note paths, headings, terms, and readings. Keep these stab
 
 Open the command palette and run **Word Challenge: 打开背单词**, or use the ribbon icon.
 
-1. Start new words or due reviews.
-2. Recall the pronunciation and meaning; tap to reveal.
-3. Select 忘记 (Forgot), 模糊 (Unsure), or 认识 (Know).
+1. Choose new words or due reviews to preview the upcoming vocabulary list. Return without starting, or select 开始新学 / 开始复习 to begin.
+2. In the preview, tap 已掌握 at the top right to select familiar words (or select all), then confirm to mark them mastered and skip them. These edits do not count as study answers or toward the daily goal.
+3. Recall the reading and meaning; tap to reveal.
+4. Select 忘记 (Forgot), 模糊 (Unsure), or 认识 (Know).
+5. Finish the queue to see a result chart, daily goal progress, and reviewed words. 再来一组 previews the next group. Each word is counted once using its last answer, even when repeated during a retry.
 
 Desktop shortcuts: Space reveals the answer; 1/2/3 grade it. Finish today's goal to unlock another batch of new words. Unfinished new-word sessions resume through the New words / Continue new words button; review sessions resume through the Review button. There is no separate resume button or End session action.
 
@@ -65,7 +68,7 @@ Click a status badge in the learning list to edit it. Manual edits reset the int
 
 The plugin reads only the configured folder inside your vault. Study progress and settings are stored in `.obsidian/plugins/qian-ci-zhan/data.json`. The technical plugin ID is retained for compatibility with the original local version.
 
-No account, telemetry, paid service, bundled wordbook, or plugin-managed network request is required. Entry links open an external dictionary only when you click them. Speech uses the operating system's speech API; voice availability and any network behavior depend on your installed speech service. Feedback sounds are synthesized locally with Web Audio.
+No account, telemetry, paid service, bundled wordbook, or plugin-managed network request is required. Entry links open an external dictionary only when you click them. There is no listening mode or speech playback. Feedback sounds are synthesized locally with Web Audio.
 
 Remotely Save can sync progress if configuration-folder syncing is enabled and the file is not excluded. Sync the source device, then the destination device, then reload this plugin on the destination. Live merging is not supported: avoid studying on two devices before syncing. Back up `data.json` before replacing or migrating a plugin installation.
 
