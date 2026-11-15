@@ -40,6 +40,8 @@ Accepted headers include `Word` / `Term` / `单词` / `词语` / `词条` / `日
 
 Word IDs are based on note paths, headings, terms, and readings. Keep these stable to retain progress. Editing a meaning does not change the ID. Repeated rows are tracked separately.
 
+The plan progress bar uses a dark pink segment for mastered words over a pale pink segment for all learned words (including mastered words). The remaining track is unlearned vocabulary. The segments are not added together.
+
 ## Study and review
 
 Open the command palette and run **Word Challenge: 打开背单词**, or use the ribbon icon.
