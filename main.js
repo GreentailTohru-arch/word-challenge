@@ -42,7 +42,7 @@ function streak(log, now = Date.now()) {
 return {parseWords, schedule, dayKey, streak};
 })();
 const TYPE='qian-ci-zhan-view';
-const DEFAULTS={folder:'Word Challenge/词库', language:'auto', daily:20, unit:'', states:{}, log:{}, newLog:{}, session:null};
+const DEFAULTS={folder:'Word Challenge/词库', language:'auto', daily:20, unit:'', states:{}, log:{}, newLog:{}, session:null, pausedSessions:{}};
 function el(parent, tag, cls, text) { return parent.createEl(tag,{cls,text}); }
 function button(parent, text, fn, cls='') { const b=el(parent,'button',cls,text); b.addEventListener('click',fn); return b; }
 class VocabularyView extends ItemView {
@@ -55,19 +55,84 @@ class VocabularyView extends ItemView {
     el(this.page,'div','qcz-eyebrow','WORD CHALLENGE / 每天进步一点'); el(this.page,'h1','','我的学习计划');
     const card=el(this.page,'section','qcz-plan'); const heading=el(card,'div','qcz-plan-heading'); const cover=el(heading,'div','qcz-cover'); el(cover,'small','','WORD'); el(cover,'strong','','W\nC'); el(cover,'small','','CHALLENGE'); const info=el(heading,'div','qcz-plan-info'); el(info,'span','qcz-eyebrow','MY VOCABULARY'); el(info,'h2','',d.folder.split('/').filter(Boolean).pop()||'我的词库'); el(info,'p','qcz-muted',`${words.length} 条${d.unit?' · 已筛选单元':''}`); el(info,'span','qcz-pill',remaining?`预计还需 ${Math.ceil(remaining/d.daily)} 天 · 每天 ${d.daily} 个新词`:'本单元新词已学完');
     const progress=el(card,'progress','qcz-progress');progress.max=words.length||1;progress.value=learned.length;progress.setAttribute('aria-label','已学词条进度'); const legend=el(card,'div','qcz-legend');el(legend,'span','',`● 掌握 ${mastered.length}`);el(legend,'span','',`已学 ${learned.length}`); button(legend,'学习列表 →',()=>{this.screen='list';this.render();},'qcz-link');
-    const todayNewCount=(d.newLog[dayKey()]||[]).length;el(card,'p','qcz-daily-status',todayNewCount>=d.daily?`今日新词 ${todayNewCount} / ${d.daily} · 目标已完成，可继续加学`:`今日新词 ${todayNewCount} / ${d.daily}`);const actions=el(card,'div','qcz-actions');button(actions,`复习 ${due.length}`,()=>this.start('review'),'qcz-primary');button(actions,(d.newLog[dayKey()]||[]).length>=d.daily?`继续新学 · ${d.daily}`:'新学 →',()=>this.start('new'),'qcz-secondary');if(d.session)button(card,`继续上次学习（${d.session.index}/${d.session.ids.length}）`,()=>{this.screen='study';this.revealed=false;this.render();},'qcz-resume');
+    const todayNewCount=(d.newLog[dayKey()]||[]).length;el(card,'p','qcz-daily-status',todayNewCount>=d.daily?`今日新词 ${todayNewCount} / ${d.daily} · 目标已完成，可继续加学`:`今日新词 ${todayNewCount} / ${d.daily}`);const actions=el(card,'div','qcz-actions');const pending=mode=>d.session?.mode===mode?d.session:d.pausedSessions?.[mode];const review=pending('review'),fresh=pending('new');button(actions,review?`继续复习 · ${review.index}/${review.ids.length}`:`复习 ${due.length}`,()=>this.start('review'),'qcz-primary');button(actions,fresh?`继续新学 · ${fresh.index}/${fresh.ids.length}`:todayNewCount>=d.daily?`继续新学 · ${d.daily}`:'新学 →',()=>this.start('new'),'qcz-secondary');
     const filter=el(this.page,'div','qcz-filter');el(filter,'label','','学习范围');const select=el(filter,'select');select.setAttribute('aria-label','学习范围');for(const unit of ['',...new Set(p.words.map(w=>w.unit))]){const option=el(select,'option','',unit||'全部单元');option.value=unit;}select.value=d.unit;select.onchange=async()=>{d.unit=select.value;await p.persist();this.render();};
     const stats=el(this.page,'section','qcz-stats'); el(stats,'p','qcz-muted','今日学习');el(stats,'strong','qcz-today',String(today.length));const grid=el(stats,'div','qcz-stat-grid');for(const [label,value]of[['累计学词',Object.keys(d.states).length],['累计打卡',Object.values(d.log).filter(x=>x.length).length],['连续打卡',streak(d.log)]]){const item=el(grid,'div');el(item,'span','qcz-muted',label);el(item,'strong','',String(value));}
     el(this.page,'p','qcz-footnote','忘记：本轮补练一次；模糊：1 天后；认识：间隔逐步延长。已学不等于掌握；掌握需间隔达到 21 天且最近回答认识。');if(!p.words.length)el(this.page,'p','','没有找到词条，请在插件设置中检查词库文件夹。');
   }
-  async start(mode){const p=this.plugin,d=p.data;if(d.session){new Notice('请先继续或结束上次学习，再开始新的任务。');return;}const now=Date.now();const todayNew=(d.newLog[dayKey()]||[]).length;const pool=this.subset().filter(w=>mode==='new'?!d.states[w.id]:d.states[w.id]&&d.states[w.id].due<=now);if(mode==='review')pool.sort((a,b)=>d.states[a.id].due-d.states[b.id].due);const limit=mode==='new'?(todayNew<d.daily?d.daily-todayNew:d.daily):50;const ids=pool.slice(0,limit).map(w=>w.id);if(!ids.length){new Notice(mode==='new'?'所选范围的新词已学完，可切换其他单元。':'暂时没有到期复习词。');return;}d.session={ids,index:0,mode,retry:[]};await p.persist();this.screen='study';this.revealed=false;this.render();}
-  study(){const d=this.plugin.data,s=d.session;const w=this.plugin.words.find(w=>w.id===s.ids[s.index]);if(!w){el(this.page,'p','','词库已变动或本轮已完成。');button(this.page,'结束本轮',()=>this.finish());return;}const top=el(this.page,'div','qcz-study-top');button(top,'← 返回',()=>{this.screen='home';this.render();},'qcz-link');el(top,'span','qcz-muted',`${s.index} / ${s.ids.length}`);button(top,'结束本轮',()=>this.finish(),'qcz-link');const progress=el(this.page,'progress','qcz-progress');progress.max=s.ids.length;progress.value=s.index;progress.setAttribute('aria-label','本轮学习进度');el(this.page,'div','qcz-eyebrow',s.mode==='new'?'NEW WORDS / 新学':'REVIEW / 复习');
+  async start(mode){
+    if(this.busy)return;
+    const p=this.plugin,d=p.data;
+    const pending=d.session?.mode===mode?d.session:d.pausedSessions?.[mode];
+    const activate=async session=>{
+      if(d.session&&d.session!==session){d.pausedSessions??={};d.pausedSessions[d.session.mode]=d.session;}
+      d.session=session;
+      if(d.pausedSessions)delete d.pausedSessions[mode];
+      await p.persist();this.screen='study';this.revealed=false;this.render();
+    };
+    if(pending){await activate(pending);return;}
+    const now=Date.now(),todayNew=(d.newLog[dayKey()]||[]).length;
+    const pool=this.subset().filter(w=>mode==='new'?!d.states[w.id]:d.states[w.id]&&d.states[w.id].due<=now);
+    if(mode==='review')pool.sort((a,b)=>d.states[a.id].due-d.states[b.id].due);
+    const limit=mode==='new'?(todayNew<d.daily?d.daily-todayNew:d.daily):50;
+    const ids=pool.slice(0,limit).map(w=>w.id);
+    if(!ids.length){new Notice(mode==='new'?'所选范围的新词已学完，可切换其他单元。':'暂时没有到期复习词。');return;}
+    await activate({ids,index:0,mode,retry:[],history:[]});
+  }
+  async previousQuestion(){
+    if(this.busy)return;
+    const p=this.plugin,d=p.data,s=d.session;
+    if(!s||s.index===0)return;
+    const backup=JSON.stringify(d);this.busy=true;
+    const entry=s.history?.at(-1);
+    if(entry&&entry.index===s.index-1){
+      s.history.pop();s.index=entry.index;s.ids=entry.ids;s.retry=entry.retry;if(entry.correction){s.corrections??={};s.corrections[s.index]=true;}
+      if(entry.state)d.states[entry.id]=entry.state;else delete d.states[entry.id];
+      for(const [name,had]of [['log',entry.hadLog],['newLog',entry.hadNewLog]]){
+        if(!had&&d[name][entry.key]){d[name][entry.key]=d[name][entry.key].filter(id=>id!==entry.id);if(!d[name][entry.key].length)delete d[name][entry.key];}
+      }
+    }else{
+      // Older saved sessions have no answer history: revisit without increasing review counts.
+      s.index--;s.corrections??={};s.corrections[s.index]=true;
+    }
+    try{await p.persist();this.revealed=false;this.render();}catch(error){p.data=JSON.parse(backup);new Notice('返回上一题失败，请重试。');}finally{this.busy=false;}
+  }
+  async skipMissingWord(){
+    const s=this.plugin.data.session;if(!s)return;
+    s.ids.splice(s.index,1);
+    if(s.index>=s.ids.length){this.plugin.data.session=null;this.screen='home';}
+    await this.plugin.persist();this.render();
+  }
+  async grade(value,options={}){
+    if(this.busy||(!this.revealed&&!options.mastered)||this.screen!=='study')return;
+    const p=this.plugin,d=p.data,s=d.session;
+    if(!s)return;
+    const w=p.words.find(w=>w.id===s.ids[s.index]);if(!w)return;
+    this.busy=true;p.playFeedback(value,this.containerEl.ownerDocument?.defaultView);
+    const backup=JSON.stringify(d),key=dayKey(),previous=d.states[w.id],isNew=!previous;
+    s.history??=[];s.retry??=[];
+    s.history.push({index:s.index,id:w.id,state:previous?{...previous}:null,key,hadLog:!!d.log[key]?.includes(w.id),hadNewLog:!!d.newLog[key]?.includes(w.id),ids:[...s.ids],retry:[...s.retry],correction:!!s.corrections?.[s.index]});
+    const correction=s.corrections?.[s.index];
+    let next=schedule(previous,value);
+    if(correction&&previous){
+      next=previous.grade===value?{...previous}:{...schedule(null,value),reviews:previous.reviews,lapses:previous.lapses};
+      delete s.corrections[s.index];
+    }
+    if(options.mastered){const interval=Math.max(30,previous?.interval||0);next={...next,grade:2,interval,due:Date.now()+interval*86400000};s.ids=s.ids.filter((id,index)=>index<=s.index||id!==w.id);}
+    d.states[w.id]=next;
+    for(const name of isNew?['log','newLog']:['log']){d[name][key]??=[];if(!d[name][key].includes(w.id))d[name][key].push(w.id);}
+    if(value===0&&!s.retry.includes(w.id)){s.retry.push(w.id);s.ids.push(w.id);}
+    s.index++;this.revealed=false;
+    try{await p.persist();if(s.index>=s.ids.length){d.session=null;await p.persist();this.screen='home';new Notice('本轮学习完成，进度已保存。');}this.render();}
+    catch(error){p.data=JSON.parse(backup);this.revealed=true;new Notice('保存失败，请重试。');this.render();}
+    finally{this.busy=false;}
+  }
+  study(){const d=this.plugin.data,s=d.session;const w=this.plugin.words.find(w=>w.id===s.ids[s.index]);if(!w){el(this.page,'p','','词库已变动或本轮已完成。');button(this.page,'跳过已移除的词条',()=>this.skipMissingWord());return;}const top=el(this.page,'div','qcz-study-top');button(top,'← 返回',()=>{this.screen='home';this.render();},'qcz-link');el(top,'span','qcz-muted',`${s.index} / ${s.ids.length}`);const more=button(top,'⋮',event=>{const menu=new Menu();menu.addItem(item=>item.setTitle('掌握').onClick(()=>this.grade(2,{mastered:true})));menu.addItem(item=>item.setTitle('上一题').setDisabled(s.index===0).onClick(()=>this.previousQuestion()));menu.showAtMouseEvent(event);},'qcz-link qcz-more');more.setAttribute('aria-label','更多学习操作');more.setAttribute('aria-haspopup','menu');const progress=el(this.page,'progress','qcz-progress');progress.max=s.ids.length;progress.value=s.index;progress.setAttribute('aria-label','本轮学习进度');el(this.page,'div','qcz-eyebrow',s.mode==='new'?'NEW WORDS / 新学':'REVIEW / 复习');
     const head=el(this.page,'div','qcz-word-head');el(head,'h1','qcz-word',w.term);if(this.revealed)button(head,'♫ 朗读',()=>this.speak(w.reading||w.term),'qcz-speak');
     if(!this.revealed){const reveal=button(this.page,'',()=>{this.revealed=true;this.render();},'qcz-reveal');el(reveal,'strong','','试试回忆读音和释义');el(reveal,'span','qcz-muted','点击显示答案 · 空格键');return;}
     el(this.page,'p','qcz-reading',w.reading);el(this.page,'span','qcz-pill',w.pos);el(this.page,'h3','qcz-section-title','释义');el(this.page,'div','qcz-definition',w.meaning);el(this.page,'p','qcz-muted',`${w.unit} · ${w.section}`);if(w.url){const source=el(this.page,'a','qcz-source','查看原词条 ↗');source.href=w.url;source.target='_blank';source.rel='noopener noreferrer';}button(this.page,'打开词表笔记',()=>this.app.workspace.openLinkText(w.path,'',false),'qcz-link');
     el(this.page,'p','qcz-footnote qcz-keyboard-hint','快捷键：空格显示答案 · 1 忘记 · 2 模糊 · 3 认识');const actions=el(this.page,'div','qcz-grade-actions');for(const [i,title,sub]of[[0,'忘记','10 分钟后'],[1,'模糊','1 天后'],[2,'认识',d.states[w.id]?.interval?`${Math.min(180,Math.max(3,Math.round(d.states[w.id].interval*2.4)))} 天后`:'1 天后']]){const b=button(actions,'',()=>this.grade(i),`qcz-grade qcz-grade-${i}`);el(b,'strong','',title);el(b,'small','',sub);}
   }
-  async grade(value){if(this.busy||!this.revealed||this.screen!=='study')return;this.busy=true;const p=this.plugin,d=p.data,s=d.session,w=p.words.find(w=>w.id===s.ids[s.index]);if(!w){this.busy=false;return;}this.plugin.playFeedback(value,this.containerEl.ownerDocument?.defaultView);const backup=JSON.stringify(d);const key=dayKey();const isNew=!d.states[w.id];d.states[w.id]=schedule(d.states[w.id],value);for(const name of isNew?['log','newLog']:['log']){d[name][key]??=[];if(!d[name][key].includes(w.id))d[name][key].push(w.id);}if(value===0&&!s.retry.includes(w.id)){s.retry.push(w.id);s.ids.push(w.id);}s.index++;this.revealed=false;try{await p.persist();if(s.index>=s.ids.length){d.session=null;await p.persist();this.screen='home';new Notice('本轮学习完成，进度已保存。');}this.render();}catch(e){p.data=JSON.parse(backup);this.revealed=true;new Notice('保存失败，请重试。');this.render();}finally{this.busy=false;}}
   async finish(){this.plugin.data.session=null;await this.plugin.persist();this.screen='home';this.render();}
   speak(text){const win=this.containerEl.ownerDocument.defaultView;if(!win.speechSynthesis){new Notice('当前设备不支持语音朗读。');return;}const voices=win.speechSynthesis.getVoices();const language=this.plugin.data.language==='auto'?(/[ぁ-んァ-ヶ]/.test(text)?'ja-JP':/[一-龯]/.test(text)?'zh-CN':'en-US'):(this.plugin.data.language||'en-US');const voice=voices.find(v=>v.lang===language)||voices.find(v=>v.lang.startsWith(language.split('-')[0]));if(!voice){new Notice('请在系统中安装所选语言的语音。');return;}const utterance=new win.SpeechSynthesisUtterance(text);utterance.lang=language;utterance.voice=voice;utterance.rate=.85;win.speechSynthesis.cancel();win.speechSynthesis.speak(utterance);}
   async setWordStatus(word, grade){

@@ -47,13 +47,15 @@ Open the command palette and run **Word Challenge: 打开背单词**, or use the
 2. Recall the pronunciation and meaning; tap to reveal.
 3. Select 忘记 (Forgot), 模糊 (Unsure), or 认识 (Know).
 
-Desktop shortcuts: Space reveals the answer; 1/2/3 grade it. Finish today's goal to unlock another batch of new words. You can resume an unfinished session after reopening.
+Desktop shortcuts: Space reveals the answer; 1/2/3 grade it. Finish today's goal to unlock another batch of new words. Unfinished new-word sessions resume through the New words / Continue new words button; review sessions resume through the Review button. There is no separate resume button or End session action.
 
 | Rating | Schedule |
 | --- | --- |
 | Forgot | Due in 10 minutes; appended once to the current session |
 | Unsure | Due in 1 day |
 | Know | First 1 day, then approximately ×2.4; maximum 180 days |
+
+The study screen has a three-dot menu: **掌握 (Mastered)** directly marks the current word mastered and sets a minimum 30-day interval; **上一题 (Previous)** undoes the last answer and its retry insertion before showing the word again. Older sessions without answer history allow revisiting without increasing review counts.
 
 The latest rating wins, including retry ratings. A word counts as mastered when its interval is at least 21 days and its latest rating is Know. This is a simple interval scheduler, not FSRS or SM-2.
 

@@ -95,3 +95,4 @@
 .qcz-container .qcz-page button.qcz-grade small{opacity:.88}
 .qcz-container .qcz-page button.qcz-grade:active{transform:scale(.98);filter:brightness(.92)}
 .qcz-container .qcz-page button.qcz-grade:hover{filter:brightness(1.07)}
+.qcz-container .qcz-page .qcz-more{min-width:44px;min-height:44px;font-size:28px;line-height:1;padding:4px!important;flex-shrink:0}
