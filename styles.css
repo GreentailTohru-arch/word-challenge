@@ -268,3 +268,6 @@
 }
 
 .theme-dark .qcz-container .qcz-cover { background: linear-gradient(145deg,#573442,#744354); color:#f4cbd6; }
+.qcz-container .qcz-page .qcz-japanese {
+  font-family: var(--font-text, 'Noto Serif SC', 'Noto Serif JP', 'Yu Mincho', 'Hiragino Mincho ProN', serif);
+}

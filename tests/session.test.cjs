@@ -66,4 +66,7 @@ test('完整流程：加载真实词库、翻卡、评分、存档恢复、遗�
  let elements=flatten(v.page);assert.equal(elements.find(e=>e.cls==='qcz-progress-learned').style.width,'40%');assert.equal(elements.find(e=>e.cls==='qcz-progress-mastered').style.width,'10%');assert.equal(elements.find(e=>e.cls==='qcz-plan-progress').attrs['aria-valuenow'],'4');assert.ok(!elements.some(e=>e.text==='查看上次学习总结'));
  p.data.states[p.words[0].id].interval=1;v.render();assert.equal(flatten(v.page).find(e=>e.cls==='qcz-progress-mastered').style.width,'0%');p.words=[];v.render();assert.equal(flatten(v.page).find(e=>e.cls==='qcz-progress-learned').style.width,'0%');p.words=priorWords;p.data=priorData;
 
+ // A newly named installation imports the old ID once, and never overwrites newer progress.
+ const migrationData=JSON.parse(JSON.stringify(p.data));saved=null;app.vault.configDir='.obsidian';let legacyReads=0;app.vault.adapter={exists:async name=>name==='.obsidian/plugins/qian-ci-zhan/data.json',read:async()=>{legacyReads++;return JSON.stringify(migrationData);}};const migrated=new context.module.exports();migrated.app=app;await migrated.onload();assert.equal(legacyReads,1);assert.deepEqual(saved,migrationData);assert.deepEqual(JSON.parse(JSON.stringify(migrated.data.states)),migrationData.states);const loaded=new context.module.exports();loaded.app=app;await loaded.onload();assert.equal(legacyReads,1);
+
 });

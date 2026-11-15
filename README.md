@@ -68,7 +68,7 @@ Click a status badge in the learning list to edit it. Manual edits reset the int
 
 ## Privacy and sync
 
-The plugin reads only the configured folder inside your vault. Study progress and settings are stored in `.obsidian/plugins/qian-ci-zhan/data.json`. The technical plugin ID is retained for compatibility with the original local version.
+The plugin reads only the configured folder inside your vault. Study progress and settings are stored in `.obsidian/plugins/word-challenge/data.json`. The plugin ID is word-challenge. On the first launch, if the new installation has no progress file, it imports data from the previous qian-ci-zhan installation once. Existing progress under the new ID always takes priority.
 
 No account, telemetry, paid service, bundled wordbook, or plugin-managed network request is required. Entry links open an external dictionary only when you click them. There is no listening mode or speech playback. Feedback sounds are synthesized locally with Web Audio.
 
@@ -76,7 +76,7 @@ Remotely Save can sync progress if configuration-folder syncing is enabled and t
 
 ## Manual installation
 
-Copy `main.js`, `manifest.json`, and `styles.css` from the release into `.obsidian/plugins/qian-ci-zhan/` in your vault and enable **Word Challenge** in Community plugins.
+Copy `main.js`, `manifest.json`, and `styles.css` from the release into `.obsidian/plugins/word-challenge/` in your vault and enable **Word Challenge** in Community plugins.
 
 Version `0.1.0` is the initial public release. Community-directory submission and approval are separate from publishing the GitHub release.
 

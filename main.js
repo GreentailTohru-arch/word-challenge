@@ -41,10 +41,21 @@ function streak(log, now = Date.now()) {
 }
 return {parseWords, schedule, dayKey, streak};
 })();
-const TYPE='qian-ci-zhan-view';
+const TYPE='word-challenge-view';
 const DEFAULTS={folder:'Word Challenge/词库', daily:20, unit:'', states:{}, log:{}, newLog:{}, session:null, pausedSessions:{}};
 function el(parent, tag, cls, text) { return parent.createEl(tag,{cls,text}); }
 function button(parent, text, fn, cls='') { const b=el(parent,'button',cls,text); b.addEventListener('click',fn); return b; }
+function wordText(parent,tag,cls,text,word,mixed=false){
+  const kana=/[ぁ-んァ-ヶ]/;
+  const japanese=kana.test((word.term||'')+' '+(word.reading||''))||/mojidict\.com/.test(word.url||'')||/日语|日文|日本|japanese/i.test(word.path||'');
+  if(!mixed){const node=el(parent,tag,(cls||'')+(japanese?' qcz-japanese':''),text);if(japanese)node.setAttribute('lang','ja');return node;}
+  const node=el(parent,tag,cls);
+  for(const part of String(text||'').split(/([\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}々〆ヵヶー]+)/u)){
+    if(!part)continue;
+    const fragment=el(node,'span',kana.test(part)?'qcz-japanese':'',part);if(kana.test(part))fragment.setAttribute('lang','ja');
+  }
+  return node;
+}
 class VocabularyView extends ItemView {
   getViewType(){return TYPE;} getDisplayText(){return 'Word Challenge';} getIcon(){return 'book-open-check';}
   async onOpen(){this.containerEl.children[1].addClass('qcz-container'); await this.plugin.loadWords(); this.render(); this.registerDomEvent(this.containerEl,'keydown',e=>{ if(/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)||e.repeat||e.ctrlKey||e.metaKey||e.altKey) return; const s=this.plugin.data.session; if(!s||this.screen!=='study')return; if(e.code==='Space'){e.preventDefault();this.revealed=true;this.render();} else if(this.revealed&&['1','2','3'].includes(e.key)){e.preventDefault();this.grade(Number(e.key)-1);} else if(e.key==='Escape'){this.screen='home';this.render();} });}
@@ -118,8 +129,8 @@ class VocabularyView extends ItemView {
     for(const w of words){
       const row=el(list,this.previewSelecting?'label':'div',`qcz-preview-row${this.previewSelected.has(w.id)?' is-selected':''}`);
       if(this.previewSelecting){const box=el(row,'input','qcz-preview-checkbox');box.type='checkbox';box.checked=this.previewSelected.has(w.id);box.setAttribute('aria-label',`选择「${w.term}」为已掌握`);box.onchange=()=>{if(box.checked)this.previewSelected.add(w.id);else this.previewSelected.delete(w.id);this.render(true);};}
-      const body=el(row,'div','qcz-preview-body');const line=el(body,'div','qcz-preview-term');el(line,'strong','',w.term);if(w.reading)el(line,'span','qcz-muted',w.reading);
-      el(body,'p','qcz-muted',`${w.pos?`[${w.pos}] `:''}${w.meaning}`);
+      const body=el(row,'div','qcz-preview-body');const line=el(body,'div','qcz-preview-term');wordText(line,'strong','',w.term,w);if(w.reading)wordText(line,'span','qcz-muted',w.reading,w);
+      wordText(body,'p','qcz-muted',`${w.pos?`[${w.pos}] `:''}${w.meaning}`,w,true);
     }
     if(!words.length)el(list,'p','qcz-muted',all.length?'当前筛选下没有词条。':'本轮待学词已全部标记掌握。');
     const footer=el(this.page,'div','qcz-preview-footer');
@@ -143,7 +154,7 @@ class VocabularyView extends ItemView {
   async completeSession(session){
     const d=this.plugin.data;
     const answers=session.answers||Object.fromEntries([...new Set(session.ids.slice(0,session.index))].filter(id=>d.states[id]).map(id=>[id,d.states[id].grade]));
-    const entries=Object.entries(answers).map(([id,grade])=>{const w=this.plugin.words.find(w=>w.id===id);return w?{id,term:w.term,reading:w.reading,pos:w.pos,meaning:w.meaning,grade}:null;}).filter(Boolean);
+    const entries=Object.entries(answers).map(([id,grade])=>{const w=this.plugin.words.find(w=>w.id===id);return w?{id,term:w.term,reading:w.reading,pos:w.pos,meaning:w.meaning,path:w.path,url:w.url,grade}:null;}).filter(Boolean);
     d.lastSummary={mode:session.mode,endedAt:Date.now(),startedAt:session.startedAt,entries,skippedMastered:session.skippedMastered?.length||0};d.session=null;
     await this.plugin.persist();this.screen='summary';
   }
@@ -166,7 +177,7 @@ class VocabularyView extends ItemView {
     button(this.page,'再来一组',()=>this.start(s.mode),'qcz-summary-again');
     el(this.page,'p','qcz-footnote','本轮按每个词最后一次作答统计；重复补练不重复计数。到期后可从计划页进入复习。');
     const list=el(this.page,'div','qcz-summary-words');
-    for(const w of s.entries){const row=el(list,'div','qcz-summary-word');const content=el(row,'div');const term=el(content,'div','qcz-preview-term');el(term,'strong','',w.term);if(w.reading)el(term,'span','qcz-muted',w.reading);el(content,'p','qcz-muted',w.meaning);el(row,'span',`qcz-status-tag qcz-status-${w.grade}`,['忘记','模糊','认识'][w.grade]);}
+    for(const w of s.entries){const row=el(list,'div','qcz-summary-word');const content=el(row,'div');const term=el(content,'div','qcz-preview-term');wordText(term,'strong','',w.term,w);if(w.reading)wordText(term,'span','qcz-muted',w.reading,w);wordText(content,'p','qcz-muted',w.meaning,w,true);el(row,'span',`qcz-status-tag qcz-status-${w.grade}`,['忘记','模糊','认识'][w.grade]);}
   }
   async previousQuestion(){
     if(this.busy)return;
@@ -217,9 +228,9 @@ class VocabularyView extends ItemView {
     finally{this.busy=false;}
   }
   study(){const d=this.plugin.data,s=d.session;const w=this.plugin.words.find(w=>w.id===s.ids[s.index]);if(!w){el(this.page,'p','','词库已变动或本轮已完成。');button(this.page,'跳过已移除的词条',()=>this.skipMissingWord());return;}const top=el(this.page,'div','qcz-study-top');button(top,'← 返回',()=>{this.screen='home';this.render();},'qcz-link');el(top,'span','qcz-muted',`${s.index} / ${s.ids.length}`);const more=button(top,'⋮',event=>{const menu=new Menu();menu.addItem(item=>item.setTitle('掌握').onClick(()=>this.grade(2,{mastered:true})));menu.addItem(item=>item.setTitle('上一题').setDisabled(s.index===0).onClick(()=>this.previousQuestion()));menu.showAtMouseEvent(event);},'qcz-link qcz-more');more.setAttribute('aria-label','更多学习操作');more.setAttribute('aria-haspopup','menu');const progress=el(this.page,'progress','qcz-progress');progress.max=s.ids.length;progress.value=s.index;progress.setAttribute('aria-label','本轮学习进度');el(this.page,'div','qcz-eyebrow',s.mode==='new'?'NEW WORDS / 新学':'REVIEW / 复习');
-    const head=el(this.page,'div','qcz-word-head');el(head,'h1','qcz-word',w.term);
+    const head=el(this.page,'div','qcz-word-head');wordText(head,'h1','qcz-word',w.term,w);
     if(!this.revealed){const reveal=button(this.page,'',()=>{this.revealed=true;this.render();},'qcz-reveal');el(reveal,'strong','','试试回忆读音和释义');el(reveal,'span','qcz-muted','点击显示答案 · 空格键');return;}
-    el(this.page,'p','qcz-reading',w.reading);el(this.page,'span','qcz-pill',w.pos);el(this.page,'h3','qcz-section-title','释义');el(this.page,'div','qcz-definition',w.meaning);el(this.page,'p','qcz-muted',`${w.unit} · ${w.section}`);if(w.url){const source=el(this.page,'a','qcz-source','查看原词条 ↗');source.href=w.url;source.target='_blank';source.rel='noopener noreferrer';}button(this.page,'打开词表笔记',()=>this.app.workspace.openLinkText(w.path,'',false),'qcz-link');
+    wordText(this.page,'p','qcz-reading',w.reading,w);el(this.page,'span','qcz-pill',w.pos);el(this.page,'h3','qcz-section-title','释义');wordText(this.page,'div','qcz-definition',w.meaning,w,true);el(this.page,'p','qcz-muted',`${w.unit} · ${w.section}`);if(w.url){const source=el(this.page,'a','qcz-source','查看原词条 ↗');source.href=w.url;source.target='_blank';source.rel='noopener noreferrer';}button(this.page,'打开词表笔记',()=>this.app.workspace.openLinkText(w.path,'',false),'qcz-link');
     el(this.page,'p','qcz-footnote qcz-keyboard-hint','快捷键：空格显示答案 · 1 忘记 · 2 模糊 · 3 认识');const actions=el(this.page,'div','qcz-grade-actions');for(const [i,title,sub]of[[0,'忘记','10 分钟后'],[1,'模糊','1 天后'],[2,'认识',d.states[w.id]?.interval?`${Math.min(180,Math.max(3,Math.round(d.states[w.id].interval*2.4)))} 天后`:'1 天后']]){const b=button(actions,'',()=>this.grade(i),`qcz-grade qcz-grade-${i}`);el(b,'strong','',title);el(b,'small','',sub);}
   }
   async finish(){this.plugin.data.session=null;await this.plugin.persist();this.screen='home';this.render();}
@@ -250,7 +261,7 @@ class VocabularyView extends ItemView {
       el(results,'p','qcz-muted',`${words.length} 条`);
       for(const w of words.slice(0,count)){
         const row=el(results,'div','qcz-list-row');const st=this.plugin.data.states[w.id];
-        el(row,'strong','',w.term);el(row,'span','qcz-muted',w.reading);el(row,'p','',w.meaning);
+        wordText(row,'strong','',w.term,w);wordText(row,'span','qcz-muted',w.reading,w);wordText(row,'p','',w.meaning,w,true);
         const meta=el(row,'div','qcz-list-meta');
         const tag=button(meta,st?labels[st.grade]:'未学习',event=>{
           const menu=new Menu();
@@ -271,7 +282,16 @@ class VocabularyView extends ItemView {
   }
 }
 module.exports=class WordChallenge extends Plugin {
-  async onload(){this.data={...DEFAULTS,...await this.loadData()};this.words=[];this.registerView(TYPE,leaf=>{const v=new VocabularyView(leaf);v.plugin=this;return v;});this.addRibbonIcon('book-open-check','Word Challenge',()=>this.open());this.addCommand({id:'open',name:'打开背单词',callback:()=>this.open()});this.addSettingTab(new VocabularySettings(this.app,this));this.app.workspace.onLayoutReady(()=>this.loadWords());this.registerEvent(this.app.vault.on('modify',file=>{if(file.path.startsWith(this.data.folder+'/')&&file.extension==='md')this.reload();}));this.registerEvent(this.app.vault.on('create',()=>this.reload()));this.registerEvent(this.app.vault.on('delete',()=>this.reload()));this.registerEvent(this.app.vault.on('rename',()=>this.reload()));}
+  async onload(){this.data={...DEFAULTS,...await this.loadProgress()};this.words=[];this.registerView(TYPE,leaf=>{const v=new VocabularyView(leaf);v.plugin=this;return v;});this.addRibbonIcon('book-open-check','Word Challenge',()=>this.open());this.addCommand({id:'open',name:'打开背单词',callback:()=>this.open()});this.addSettingTab(new VocabularySettings(this.app,this));this.app.workspace.onLayoutReady(()=>this.loadWords());this.registerEvent(this.app.vault.on('modify',file=>{if(file.path.startsWith(this.data.folder+'/')&&file.extension==='md')this.reload();}));this.registerEvent(this.app.vault.on('create',()=>this.reload()));this.registerEvent(this.app.vault.on('delete',()=>this.reload()));this.registerEvent(this.app.vault.on('rename',()=>this.reload()));}
+  async loadProgress(){
+    const current=await this.loadData();if(current)return current;
+    const adapter=this.app.vault.adapter;
+    const legacy=(this.app.vault.configDir||'.obsidian')+'/plugins/qian-ci-zhan/data.json';
+    if(adapter?.exists&&await adapter.exists(legacy)){
+      const previous=JSON.parse(await adapter.read(legacy));await this.saveData(previous);new Notice('已迁移旧版学习进度');return previous;
+    }
+    return null;
+  }
   async loadWords(){const files=this.app.vault.getMarkdownFiles().filter(f=>f.path.startsWith(this.data.folder+'/')).sort((a,b)=>a.path.localeCompare(b.path));const sets=await Promise.all(files.map(async f=>parseWords(await this.app.vault.cachedRead(f),f.path)));this.words=sets.flat();}
   async reload(){await this.loadWords();for(const leaf of this.app.workspace.getLeavesOfType(TYPE))leaf.view.render();}
   persist(){const snapshot=JSON.parse(JSON.stringify(this.data));this.saving=(this.saving||Promise.resolve()).catch(()=>{}).then(()=>this.saveData(snapshot));return this.saving;}
